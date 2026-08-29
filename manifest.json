@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "B站关注批量整理",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "author": "马小战",
   "description": "在当前登录的哔哩哔哩页面中筛选并批量取消关注。",
   "permissions": ["activeTab", "scripting", "storage"],

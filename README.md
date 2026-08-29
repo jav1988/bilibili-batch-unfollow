@@ -39,7 +39,8 @@
 ## 技术说明
 
 - 作者：马小战
-- 版本：1.2.0
+- 版本：1.2.1
+- 默认字体：`Fira Code`、`MesloLGS Nerd Font Mono`、`DejaVu LGC Sans Code`、`Roboto Mono`、`Noto Sans SC`、`monospace`
 - 清单：Manifest V3
 - 最低建议：Chrome 88+
 - 数据接口：`/x/web-interface/nav`、`/x/relation/followings`
