@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>B站关注批量整理</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <main class="app">
+    <header>
+      <div>
+        <p class="eyebrow">BILIBILI FOLLOWING MANAGER</p>
+        <h1>B站关注批量整理</h1>
+      </div>
+      <span id="statusBadge" class="badge">待连接</span>
+    </header>
+
+    <section class="notice">
+      只在当前 B 站页面内使用登录态。执行取消关注前会再次确认，并按间隔逐项处理。
+    </section>
+
+    <section class="toolbar">
+      <input id="searchInput" type="search" placeholder="模糊搜索昵称、UID、签名" disabled>
+      <button id="loadButton" class="primary">读取关注列表</button>
+    </section>
+
+    <section class="summary">
+      <span>已加载 <strong id="totalCount">0</strong></span>
+      <span>已显示 <strong id="visibleCount">0</strong></span>
+      <span>已选择 <strong id="selectedCount">0</strong></span>
+    </section>
+
+    <section class="table-wrap" aria-label="关注列表">
+      <table>
+        <thead>
+          <tr>
+            <th class="check-col"><input id="selectVisible" type="checkbox" aria-label="选择当前筛选结果"></th>
+            <th>用户</th>
+            <th>UID</th>
+            <th>状态</th>
+          </tr>
+        </thead>
+        <tbody id="followingBody">
+          <tr><td colspan="4" class="empty">请先打开 bilibili.com 页面，再读取关注列表。</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="progressPanel" class="progress-panel hidden">
+      <div class="progress-track"><div id="progressBar" class="progress-bar"></div></div>
+      <p id="progressText">准备执行</p>
+    </section>
+
+    <footer>
+      <label>随机间隔
+        <select id="delaySelect">
+          <option value="2000,4000">2～4 秒</option>
+          <option value="2500,5500" selected>2.5～5.5 秒</option>
+          <option value="4000,8000">4～8 秒</option>
+        </select>
+      </label>
+      <button id="unfollowButton" class="danger" disabled>取消所选关注</button>
+    </footer>
+
+    <div class="plugin-meta">
+      <span>作者：马小战</span>
+      <span id="versionText">版本：读取中</span>
+    </div>
+  </main>
+  <script src="popup.js"></script>
+</body>
+</html>
