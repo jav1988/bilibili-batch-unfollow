@@ -8,27 +8,37 @@
 </head>
 <body>
   <main class="app">
-    <header>
-      <div>
-        <p class="eyebrow">BILIBILI FOLLOWING MANAGER</p>
-        <h1>B站关注批量整理</h1>
+    <header class="app-header">
+      <div class="brand">
+        <img class="brand-icon" src="icons/icon-48.png" alt="">
+        <div>
+          <p class="eyebrow">FOLLOWING MANAGER</p>
+          <h1>B站关注批量整理</h1>
+        </div>
       </div>
       <span id="statusBadge" class="badge">待连接</span>
     </header>
 
     <section class="notice">
-      只在当前 B 站页面内使用登录态。执行取消关注前会再次确认，并按间隔逐项处理。
+      <span class="notice-icon">i</span>
+      <div>
+        <strong>账号数据仅在本机处理</strong>
+        <p>插件复用当前 B 站页面登录态，不读取或保存 Cookie。取消关注不可自动恢复。</p>
+      </div>
     </section>
 
-    <section class="toolbar">
-      <input id="searchInput" type="search" placeholder="模糊搜索昵称、UID、签名" disabled>
-      <button id="loadButton" class="primary">读取关注列表</button>
+    <section class="toolbar panel">
+      <div class="search-box">
+        <span class="search-icon">⌕</span>
+        <input id="searchInput" type="search" placeholder="搜索昵称、UID 或签名" disabled>
+      </div>
+      <button id="loadButton" class="button primary">读取关注列表</button>
     </section>
 
-    <section class="summary">
-      <span>已加载 <strong id="totalCount">0</strong></span>
-      <span>已显示 <strong id="visibleCount">0</strong></span>
-      <span>已选择 <strong id="selectedCount">0</strong></span>
+    <section class="summary" aria-label="列表统计">
+      <span><small>已加载</small><strong id="totalCount">0</strong></span>
+      <span><small>当前显示</small><strong id="visibleCount">0</strong></span>
+      <span class="selected-stat"><small>已经选择</small><strong id="selectedCount">0</strong></span>
     </section>
 
     <section class="table-wrap" aria-label="关注列表">
@@ -38,7 +48,7 @@
             <th class="check-col"><input id="selectVisible" type="checkbox" aria-label="选择当前筛选结果"></th>
             <th>用户</th>
             <th>UID</th>
-            <th>状态</th>
+            <th>关系</th>
           </tr>
         </thead>
         <tbody id="followingBody">
@@ -47,27 +57,77 @@
       </table>
     </section>
 
-    <section id="progressPanel" class="progress-panel hidden">
+    <section id="progressPanel" class="progress-panel hidden" aria-live="polite">
+      <div class="progress-head"><strong>批量任务</strong><span id="progressText">准备执行</span></div>
       <div class="progress-track"><div id="progressBar" class="progress-bar"></div></div>
-      <p id="progressText">准备执行</p>
     </section>
 
-    <footer>
-      <label>随机间隔
-        <select id="delaySelect">
-          <option value="2000,4000">2～4 秒</option>
-          <option value="2500,5500" selected>2.5～5.5 秒</option>
-          <option value="4000,8000">4～8 秒</option>
-        </select>
-      </label>
-      <button id="unfollowButton" class="danger" disabled>取消所选关注</button>
-    </footer>
+    <section class="action-panel">
+      <div class="delay-control">
+        <label for="delaySelect">随机操作间隔</label>
+        <div class="delay-row">
+          <select id="delaySelect">
+            <option value="800,1500" data-risk="danger">0.8～1.5 秒 · 高风险</option>
+            <option value="1200,2200" data-risk="warning">1.2～2.2 秒 · 较高风险</option>
+            <option value="2000,4000" data-risk="normal">2～4 秒 · 常规</option>
+            <option value="2500,5500" data-risk="safe" selected>2.5～5.5 秒 · 推荐</option>
+            <option value="4000,8000" data-risk="safe">4～8 秒 · 保守</option>
+          </select>
+          <span id="riskBadge" class="risk-badge safe">推荐</span>
+        </div>
+        <p id="riskHint" class="risk-hint">较平衡的默认选择，仍不能保证不会触发平台限制。</p>
+      </div>
+      <button id="unfollowButton" class="button danger" disabled>
+        <span>取消所选关注</span>
+        <small>执行前再次确认</small>
+      </button>
+    </section>
 
     <div class="plugin-meta">
       <span>作者：马小战</span>
+      <span class="meta-dot">•</span>
       <span id="versionText">版本：读取中</span>
     </div>
   </main>
+
+  <div id="modalBackdrop" class="modal-backdrop hidden" role="presentation">
+    <section id="confirmDialog" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+      <div class="modal-icon warning-icon">!</div>
+      <div class="modal-heading">
+        <p class="eyebrow">DESTRUCTIVE ACTION</p>
+        <h2 id="confirmTitle">确认取消关注</h2>
+      </div>
+      <p class="modal-message">此操作无法由插件自动恢复，请核对本次操作范围。</p>
+      <div class="confirm-summary">
+        <div><small>选择人数</small><strong id="confirmCount">0</strong></div>
+        <div><small>随机间隔</small><strong id="confirmDelay">-</strong></div>
+        <div><small>风险等级</small><strong id="confirmRisk">-</strong></div>
+      </div>
+      <div id="confirmPreview" class="user-preview"></div>
+      <label class="confirm-check">
+        <input id="confirmCheckbox" type="checkbox">
+        <span>我已核对名单，并理解取消关注不可自动恢复</span>
+      </label>
+      <div class="modal-actions">
+        <button id="cancelConfirmButton" class="button secondary">返回检查</button>
+        <button id="acceptConfirmButton" class="button danger" disabled>确认取消关注</button>
+      </div>
+    </section>
+
+    <section id="resultDialog" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="resultTitle">
+      <div id="resultIcon" class="modal-icon result-icon">✓</div>
+      <div class="modal-heading">
+        <p class="eyebrow">TASK RESULT</p>
+        <h2 id="resultTitle">任务完成</h2>
+      </div>
+      <p id="resultMessage" class="modal-message"></p>
+      <div id="resultDetails" class="result-details hidden"></div>
+      <div class="modal-actions single-action">
+        <button id="closeResultButton" class="button primary">知道了</button>
+      </div>
+    </section>
+  </div>
+
   <script src="popup.js"></script>
 </body>
 </html>

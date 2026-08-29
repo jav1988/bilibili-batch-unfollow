@@ -4,7 +4,8 @@ var state = {
   items: [],
   selected: {},
   owner: '',
-  running: false
+  running: false,
+  confirmResolve: null
 };
 
 var STORAGE_KEY = 'followingManagerState';
@@ -23,7 +24,24 @@ var elements = {
   progressText: document.getElementById('progressText'),
   delaySelect: document.getElementById('delaySelect'),
   unfollowButton: document.getElementById('unfollowButton'),
-  versionText: document.getElementById('versionText')
+  versionText: document.getElementById('versionText'),
+  riskBadge: document.getElementById('riskBadge'),
+  riskHint: document.getElementById('riskHint'),
+  modalBackdrop: document.getElementById('modalBackdrop'),
+  confirmDialog: document.getElementById('confirmDialog'),
+  confirmCount: document.getElementById('confirmCount'),
+  confirmDelay: document.getElementById('confirmDelay'),
+  confirmRisk: document.getElementById('confirmRisk'),
+  confirmPreview: document.getElementById('confirmPreview'),
+  confirmCheckbox: document.getElementById('confirmCheckbox'),
+  cancelConfirmButton: document.getElementById('cancelConfirmButton'),
+  acceptConfirmButton: document.getElementById('acceptConfirmButton'),
+  resultDialog: document.getElementById('resultDialog'),
+  resultIcon: document.getElementById('resultIcon'),
+  resultTitle: document.getElementById('resultTitle'),
+  resultMessage: document.getElementById('resultMessage'),
+  resultDetails: document.getElementById('resultDetails'),
+  closeResultButton: document.getElementById('closeResultButton')
 };
 
 /**
@@ -74,6 +92,7 @@ function saveState() {
       selected: state.selected,
       owner: state.owner,
       search: elements.searchInput.value,
+      delayRange: elements.delaySelect.value,
       savedAt: Date.now()
     };
     return record;
@@ -98,6 +117,10 @@ function restoreState() {
     state.selected = saved.selected && typeof saved.selected === 'object' ? saved.selected : {};
     state.owner = saved.owner || '';
     elements.searchInput.value = saved.search || '';
+    if (saved.delayRange) {
+      elements.delaySelect.value = saved.delayRange;
+      updateDelayRisk();
+    }
     elements.searchInput.disabled = false;
     elements.statusBadge.textContent = state.owner ? '已恢复：' + state.owner : '已恢复列表';
     renderList();
@@ -105,6 +128,100 @@ function restoreState() {
     elements.statusBadge.textContent = '恢复失败';
     updateSummary();
   });
+}
+
+/**
+ * 中文：根据当前随机区间更新风险标签和说明，让用户在执行前持续感知速度代价。
+ *
+ * English: Update the risk label and guidance for the selected interval so users continuously see the cost of speed before execution.
+ */
+function updateDelayRisk() {
+  var option = elements.delaySelect.options[elements.delaySelect.selectedIndex];
+  var risk = option ? option.getAttribute('data-risk') : 'safe';
+  var labels = { danger: '高风险', warning: '较高风险', normal: '常规', safe: '推荐' };
+  var hints = {
+    danger: '请求非常密集，明显更容易触发平台限制，仅建议极少量操作。',
+    warning: '请求较密集，建议缩小单次选择数量并观察接口反馈。',
+    normal: '速度与间隔较均衡，仍建议分批处理。',
+    safe: '较平衡的默认选择，仍不能保证不会触发平台限制。'
+  };
+  elements.riskBadge.className = 'risk-badge ' + risk;
+  elements.riskBadge.textContent = labels[risk] || labels.safe;
+  elements.riskHint.textContent = hints[risk] || hints.safe;
+}
+
+/**
+ * 中文：打开插件内确认弹窗并返回用户决定，以更清晰地呈现不可恢复性和风险等级。
+ *
+ * English: Open the in-extension confirmation dialog and return the user's decision with clearer irreversible-action and risk context.
+ */
+function openConfirmationDialog(selectedItems) {
+  var option = elements.delaySelect.options[elements.delaySelect.selectedIndex];
+  var risk = option ? option.getAttribute('data-risk') : 'safe';
+  var riskLabels = { danger: '高风险', warning: '较高风险', normal: '常规', safe: '推荐' };
+  elements.confirmCount.textContent = String(selectedItems.length) + ' 人';
+  elements.confirmDelay.textContent = option ? option.textContent.split('·')[0].trim() : '-';
+  elements.confirmRisk.textContent = riskLabels[risk] || '推荐';
+  elements.confirmRisk.className = risk;
+  elements.confirmPreview.innerHTML = selectedItems.slice(0, 20).map(function (item) {
+    return '<span class="preview-user">' + escapeHtml(item.uname || String(item.mid)) + '</span>';
+  }).join('') + (selectedItems.length > 20 ? '<span class="preview-user">另有 ' + (selectedItems.length - 20) + ' 人</span>' : '');
+  elements.confirmCheckbox.checked = false;
+  elements.acceptConfirmButton.disabled = true;
+  elements.modalBackdrop.classList.remove('hidden');
+  elements.confirmDialog.classList.remove('hidden');
+  elements.resultDialog.classList.add('hidden');
+  return new Promise(function (resolve) {
+    state.confirmResolve = resolve;
+  });
+}
+
+/**
+ * 中文：关闭确认弹窗并结算用户选择，防止同一次确认被重复触发。
+ *
+ * English: Close the confirmation dialog and settle the user's choice so one confirmation cannot be triggered twice.
+ */
+function closeConfirmationDialog(accepted) {
+  elements.confirmDialog.classList.add('hidden');
+  elements.modalBackdrop.classList.add('hidden');
+  if (state.confirmResolve) {
+    var resolve = state.confirmResolve;
+    state.confirmResolve = null;
+    resolve(Boolean(accepted));
+  }
+}
+
+/**
+ * 中文：用插件内结果弹窗展示成功、失败与熔断信息，替代样式不可控的浏览器原生警告框。
+ *
+ * English: Show successes, failures, and circuit-break information in a styled in-extension result dialog instead of an unstyled browser alert.
+ */
+function showResultDialog(succeededCount, failed, stoppedEarly) {
+  var hasFailure = failed.length > 0;
+  elements.resultIcon.className = 'modal-icon result-icon' + (hasFailure ? ' error' : '');
+  elements.resultIcon.textContent = hasFailure ? '!' : '✓';
+  elements.resultTitle.textContent = stoppedEarly ? '任务已熔断停止' : (hasFailure ? '任务部分完成' : '任务完成');
+  elements.resultMessage.textContent = '成功取消 ' + succeededCount + ' 人，失败 ' + failed.length + ' 人。' + (stoppedEarly ? ' 连续失败达到 3 次，插件已停止后续请求。' : '');
+  if (hasFailure) {
+    elements.resultDetails.textContent = failed.slice(0, 20).join('\n');
+    elements.resultDetails.classList.remove('hidden');
+  } else {
+    elements.resultDetails.textContent = '';
+    elements.resultDetails.classList.add('hidden');
+  }
+  elements.modalBackdrop.classList.remove('hidden');
+  elements.resultDialog.classList.remove('hidden');
+  elements.confirmDialog.classList.add('hidden');
+}
+
+/**
+ * 中文：关闭任务结果弹窗，使用户返回已更新的关注列表继续核查。
+ *
+ * English: Close the task result dialog so the user can return to the updated following list for review.
+ */
+function closeResultDialog() {
+  elements.resultDialog.classList.add('hidden');
+  elements.modalBackdrop.classList.add('hidden');
 }
 
 /**
@@ -332,9 +449,8 @@ async function unfollowSelected() {
   if (!selectedItems.length) {
     return;
   }
-  var preview = selectedItems.slice(0, 5).map(function (item) { return item.uname; }).join('、');
-  var suffix = selectedItems.length > 5 ? ' 等' : '';
-  if (!window.confirm('即将取消关注 ' + selectedItems.length + ' 位用户：\n\n' + preview + suffix + '\n\n此操作无法由插件自动恢复，确定继续吗？')) {
+  var confirmed = await openConfirmationDialog(selectedItems);
+  if (!confirmed) {
     return;
   }
 
@@ -377,9 +493,7 @@ async function unfollowSelected() {
   elements.progressText.textContent = (stoppedEarly ? '已熔断停止' : '完成') + '：成功 ' + succeeded.length + '，失败 ' + failed.length;
   renderList();
   saveState();
-  if (failed.length) {
-    window.alert('部分操作失败，失败项已保留：\n\n' + failed.slice(0, 10).join('\n'));
-  }
+  showResultDialog(succeeded.length, failed, stoppedEarly);
 }
 
 elements.loadButton.addEventListener('click', loadFollowings);
@@ -402,6 +516,28 @@ elements.followingBody.addEventListener('change', function (event) {
     saveState();
   }
 });
+elements.delaySelect.addEventListener('change', function () {
+  updateDelayRisk();
+  saveState();
+});
 elements.unfollowButton.addEventListener('click', unfollowSelected);
+elements.confirmCheckbox.addEventListener('change', function () {
+  elements.acceptConfirmButton.disabled = !elements.confirmCheckbox.checked;
+});
+elements.cancelConfirmButton.addEventListener('click', function () {
+  closeConfirmationDialog(false);
+});
+elements.acceptConfirmButton.addEventListener('click', function () {
+  closeConfirmationDialog(true);
+});
+elements.closeResultButton.addEventListener('click', closeResultDialog);
+document.addEventListener('keydown', function (event) {
+  if (event.key === 'Escape' && !elements.confirmDialog.classList.contains('hidden')) {
+    closeConfirmationDialog(false);
+  } else if (event.key === 'Escape' && !elements.resultDialog.classList.contains('hidden')) {
+    closeResultDialog();
+  }
+});
 renderPluginMeta();
+updateDelayRisk();
 restoreState();
